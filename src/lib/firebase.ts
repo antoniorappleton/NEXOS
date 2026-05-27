@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCGWe9GweTIR54yJUMyxN9bElo82-Hq_qc",
+  authDomain: "devclass-ensino-profissiona.firebaseapp.com",
+  projectId: "devclass-ensino-profissiona",
+  storageBucket: "devclass-ensino-profissiona.firebasestorage.app",
+  messagingSenderId: "849450041863",
+  appId: "1:849450041863:web:2e760c5f7b741c720320a2"
 };
 
 // Check if credentials are set and are not placeholder values
