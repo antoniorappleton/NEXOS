@@ -7,6 +7,7 @@ interface AdminPanelProps {
   classes: Class[];
   onAddUser: (name: string, email: string, role: 'student' | 'teacher' | 'admin') => void;
   onAddClass: (name: string, course: string, year: string, teacherId: string) => void;
+  onClearPedagogicalData: () => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -14,8 +15,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   classes,
   onAddUser,
   onAddClass,
+  onClearPedagogicalData,
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'classes'>('users');
+  const [clearing, setClearing] = useState(false);
   
   // User Form states
   const [userName, setUserName] = useState('');
@@ -53,6 +56,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const teachers = users.filter(u => u.role === 'teacher');
+
+  const handleClearDataClick = async () => {
+    const confirmClear = window.confirm(
+      "Tem a certeza de que deseja eliminar TODOS os dados pedagógicos (turmas, módulos, aulas, trabalhos, notas, presenças, etc.)?\n\nEsta ação é irreversível. As contas de utilizador (perfis) serão preservadas."
+    );
+    if (!confirmClear) return;
+    
+    setClearing(true);
+    try {
+      await onClearPedagogicalData();
+      triggerToast("Dados pedagógicos limpos com sucesso!");
+    } catch (err) {
+      console.error(err);
+      triggerToast("Erro ao limpar dados pedagógicos.");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in relative">
@@ -310,6 +331,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 border border-slate-700 rounded-lg text-3xs font-semibold uppercase tracking-wider transition cursor-pointer"
             >
               Criar Backup Global
+            </button>
+            <button
+              type="button"
+              disabled={clearing}
+              onClick={handleClearDataClick}
+              className="w-full py-2 bg-rose-950/20 hover:bg-rose-950/40 text-rose-450 border border-rose-900/40 rounded-lg text-3xs font-semibold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
+            >
+              {clearing ? "A Limpar..." : "Limpar Dados Pedagógicos"}
             </button>
           </div>
         </div>

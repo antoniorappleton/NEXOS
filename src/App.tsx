@@ -29,7 +29,7 @@ import {
 // Firebase client & Views
 import { isFirebaseConfigured, auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, addDoc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { SetupInstructions } from './components/SetupInstructions';
 import { LoginView } from './components/LoginView';
 
@@ -764,6 +764,93 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAddModule = async (name: string, description: string, orderIndex: number, classId: string) => {
+    if (isFirebaseConfigured && !bypassFirebase) {
+      try {
+        await addDoc(collection(db, 'modules'), {
+          classId,
+          name,
+          description,
+          orderIndex
+        });
+        await fetchFirebaseData();
+      } catch (err) {
+        console.error('Error saving module:', err);
+      }
+    } else {
+      const created: Module = {
+        id: `m-${modules.length + 1}`,
+        classId,
+        name,
+        description,
+        orderIndex
+      };
+      setModules([...modules, created]);
+    }
+  };
+
+  const handleAddAssignment = async (newAssignment: Omit<Assignment, 'id' | 'createdAt'>) => {
+    if (isFirebaseConfigured && !bypassFirebase) {
+      try {
+        await addDoc(collection(db, 'assignments'), {
+          ...newAssignment,
+          createdAt: new Date().toISOString()
+        });
+        await fetchFirebaseData();
+      } catch (err) {
+        console.error('Error saving assignment:', err);
+      }
+    } else {
+      const created: Assignment = {
+        ...newAssignment,
+        id: `a-${assignments.length + 1}`,
+        createdAt: new Date().toISOString().slice(0, 10)
+      };
+      setAssignments([...assignments, created]);
+    }
+  };
+
+  const handleClearPedagogicalData = async () => {
+    if (isFirebaseConfigured && !bypassFirebase) {
+      try {
+        const collectionsToClear = [
+          'classes',
+          'modules',
+          'lessons',
+          'contents',
+          'assignments',
+          'submissions',
+          'grades',
+          'attendance_sessions',
+          'github_repo_activities'
+        ];
+        
+        for (const colName of collectionsToClear) {
+          const snap = await getDocs(collection(db, colName));
+          for (const docObj of snap.docs) {
+            await deleteDoc(doc(db, colName, docObj.id));
+          }
+        }
+        await fetchFirebaseData();
+      } catch (err) {
+        console.error('Error clearing data:', err);
+        throw err;
+      }
+    } else {
+      // Clear offline state
+      setClasses([]);
+      setModules([]);
+      setLessons([]);
+      setContents([]);
+      setAssignments([]);
+      setSubmissions([]);
+      setGrades([]);
+      setAttendanceSessions([]);
+      setAttendanceRecords([]);
+      setGithubRepoActivity([]);
+    }
+  };
+
   // Filter students
   const studentsList = users.filter(u => u.role === 'student');
 
@@ -792,6 +879,9 @@ export const App: React.FC = () => {
             assignments={assignments}
             submissions={submissions}
             users={users}
+            githubRepoActivity={githubRepoActivity}
+            attendanceRecords={attendanceRecords}
+            attendanceSessions={attendanceSessions}
             onNavigate={handleNavigate}
             onQuickAction={(action) => {
               if (action === 'new-lesson') setCurrentView('planeamento');
@@ -816,11 +906,13 @@ export const App: React.FC = () => {
         return (
           <PedagogicalPlanning
             user={currentUser}
+            classes={classes}
             modules={modules}
             lessons={lessons}
             students={studentsList}
             onAddLesson={handleAddLesson}
             onLogLesson={handleLogLesson}
+            onAddModule={handleAddModule}
           />
         );
       case 'conteudos':
@@ -839,8 +931,11 @@ export const App: React.FC = () => {
             assignments={assignments}
             submissions={submissions}
             students={studentsList}
+            modules={modules}
+            classes={classes}
             onGradeSubmission={handleGradeSubmission}
             onSubmitAssignment={handleSubmitAssignment}
+            onAddAssignment={handleAddAssignment}
           />
         );
       case 'github':
@@ -870,6 +965,7 @@ export const App: React.FC = () => {
             classes={classes}
             onAddUser={handleAddUser}
             onAddClass={handleAddClass}
+            onClearPedagogicalData={handleClearPedagogicalData}
           />
         );
       default:

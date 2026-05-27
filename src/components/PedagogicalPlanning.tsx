@@ -1,27 +1,38 @@
 import React, { useState } from 'react';
-import { User, Module, Lesson, AttendanceRecord } from '../data/mockData';
+import { User, Class, Module, Lesson, AttendanceRecord } from '../data/mockData';
 import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Circle, AlertCircle, Edit, Users } from 'lucide-react';
 
 interface PedagogicalPlanningProps {
   user: User;
+  classes: Class[];
   modules: Module[];
   lessons: Lesson[];
   students: User[];
   onAddLesson: (newLesson: Omit<Lesson, 'id'>) => void;
   onLogLesson: (lessonId: string, summary: string, topics: string, obs: string, attendance: { [studentId: string]: 'present' | 'absent' | 'late' | 'justified' }) => void;
+  onAddModule: (name: string, description: string, orderIndex: number, classId: string) => void;
 }
 
 export const PedagogicalPlanning: React.FC<PedagogicalPlanningProps> = ({
   user,
+  classes,
   modules,
   lessons,
   students,
   onAddLesson,
   onLogLesson,
+  onAddModule,
 }) => {
-  const [expandedModuleId, setExpandedModuleId] = useState<string | null>('m-1');
+  const [expandedModuleId, setExpandedModuleId] = useState<string | null>(modules[0]?.id || null);
   const [selectedLessonForLog, setSelectedLessonForLog] = useState<Lesson | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModuleModal, setShowAddModuleModal] = useState(false);
+
+  // Form states for new module
+  const [newModuleName, setNewModuleName] = useState('');
+  const [newModuleDesc, setNewModuleDesc] = useState('');
+  const [newModuleOrderIndex, setNewModuleOrderIndex] = useState(modules.length + 1);
+  const [newModuleClassId, setNewModuleClassId] = useState(classes[0]?.id || '');
 
   // Form states for new lesson
   const [newTitle, setNewTitle] = useState('');
@@ -80,6 +91,20 @@ export const PedagogicalPlanning: React.FC<PedagogicalPlanningProps> = ({
     setShowAddModal(false);
   };
 
+  const handleSaveModule = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAddModule(
+      newModuleName,
+      newModuleDesc,
+      Number(newModuleOrderIndex),
+      newModuleClassId
+    );
+    setNewModuleName('');
+    setNewModuleDesc('');
+    setNewModuleOrderIndex(modules.length + 2);
+    setShowAddModuleModal(false);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header section */}
@@ -89,13 +114,33 @@ export const PedagogicalPlanning: React.FC<PedagogicalPlanningProps> = ({
           <p className="mt-2 text-slate-400">Desenho curricular, módulos da disciplina e registo diário de aulas.</p>
         </div>
         {user.role === 'teacher' && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-lg bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/10 cursor-pointer"
-          >
-            <Plus size={16} />
-            Planear Aula
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setNewModuleOrderIndex(modules.length + 1);
+                setNewModuleClassId(classes[0]?.id || '');
+                setShowAddModuleModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 shadow-lg cursor-pointer"
+            >
+              <Plus size={16} />
+              Novo Módulo
+            </button>
+            <button
+              onClick={() => {
+                if (modules.length === 0) {
+                  alert('Crie pelo menos um módulo antes de planeamento de aulas.');
+                  return;
+                }
+                setNewModuleId(modules[0]?.id || '');
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-lg bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/10 cursor-pointer"
+            >
+              <Plus size={16} />
+              Planear Aula
+            </button>
+          </div>
         )}
       </div>
 
@@ -426,6 +471,82 @@ export const PedagogicalPlanning: React.FC<PedagogicalPlanningProps> = ({
                   className="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition cursor-pointer"
                 >
                   Criar Aula
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal dialog for creating a new module */}
+      {showAddModuleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 glass rounded-2xl border border-slate-800 space-y-4">
+            <h2 className="text-lg font-bold text-white">Criar Novo Módulo Curricular</h2>
+
+            <form onSubmit={handleSaveModule} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Selecione a Turma</label>
+                <select
+                  value={newModuleClassId}
+                  onChange={(e) => setNewModuleClassId(e.target.value)}
+                  className="w-full p-2.5 rounded-lg text-sm bg-slate-900 border border-slate-700 text-white focus:outline-none"
+                >
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} - {c.course}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Nome do Módulo</label>
+                <input
+                  type="text"
+                  required
+                  value={newModuleName}
+                  onChange={(e) => setNewModuleName(e.target.value)}
+                  placeholder="Ex: Programação de Computadores em C++"
+                  className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Índice / Ordem</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={newModuleOrderIndex}
+                  onChange={(e) => setNewModuleOrderIndex(Number(e.target.value))}
+                  className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Descrição do Módulo</label>
+                <textarea
+                  required
+                  value={newModuleDesc}
+                  onChange={(e) => setNewModuleDesc(e.target.value)}
+                  placeholder="Ex: Introdução à sintaxe de C++, estruturas de controle, vetores e ponteiros..."
+                  rows={3}
+                  className="w-full p-3 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModuleModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition cursor-pointer"
+                >
+                  Criar Módulo
                 </button>
               </div>
             </form>

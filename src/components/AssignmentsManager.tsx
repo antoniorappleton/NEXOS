@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { User, Assignment, Submission, RubricScore } from '../data/mockData';
-import { CheckSquare, Calendar, Link, Video, Award, MessageSquare, AlertCircle, FileArchive, CheckCircle2, UserCheck } from 'lucide-react';
+import { User, Assignment, Submission, RubricScore, Module, Class } from '../data/mockData';
+import { CheckSquare, Calendar, Link, Video, Award, MessageSquare, AlertCircle, FileArchive, CheckCircle2, UserCheck, Plus } from 'lucide-react';
 import { Github } from './Icons';
 
 interface AssignmentsManagerProps {
@@ -8,8 +8,11 @@ interface AssignmentsManagerProps {
   assignments: Assignment[];
   submissions: Submission[];
   students: User[];
+  modules: Module[];
+  classes: Class[];
   onGradeSubmission: (submissionId: string, grade: number, feedback: string, rubricScores: RubricScore[]) => void;
   onSubmitAssignment: (assignmentId: string, studentId: string, github: string, projectUrl: string, zipName: string) => void;
+  onAddAssignment: (newAssignment: Omit<Assignment, 'id' | 'createdAt'>) => void;
 }
 
 export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({
@@ -17,8 +20,11 @@ export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({
   assignments,
   submissions,
   students,
+  modules,
+  classes,
   onGradeSubmission,
   onSubmitAssignment,
+  onAddAssignment,
 }) => {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>(assignments[0]?.id || '');
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
@@ -33,6 +39,73 @@ export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({
   const [gradingComments, setGradingComments] = useState<{ [rubricId: string]: string }>({});
   const [feedbackText, setFeedbackText] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
+  // New assignment states
+  const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newInstructions, setNewInstructions] = useState('');
+  const [newDueDate, setNewDueDate] = useState('2026-06-15T23:59:00');
+  const [newWeight, setNewWeight] = useState(20);
+  const [newModuleId, setNewModuleId] = useState(modules[0]?.id || '');
+  const [newClassId, setNewClassId] = useState(classes[0]?.id || '');
+  const [newRubrics, setNewRubrics] = useState<Array<{ criterion: string; maxScore: number; description: string }>>([
+    { criterion: 'Funcionalidade', maxScore: 5, description: 'O projeto cumpre todos os requisitos de funcionamento.' },
+    { criterion: 'Arquitetura & Clean Code', maxScore: 5, description: 'Organização em funções e separação lógica.' },
+    { criterion: 'Design & UX', maxScore: 5, description: 'Interface responsiva e intuitiva.' }
+  ]);
+  
+  // Custom rubric inputs
+  const [rubricCrit, setRubricCrit] = useState('');
+  const [rubricMax, setRubricMax] = useState(5);
+  const [rubricDesc, setRubricDesc] = useState('');
+
+  const handleAddCustomRubric = () => {
+    if (!rubricCrit) return;
+    setNewRubrics([...newRubrics, { criterion: rubricCrit, maxScore: Number(rubricMax), description: rubricDesc }]);
+    setRubricCrit('');
+    setRubricMax(5);
+    setRubricDesc('');
+  };
+
+  const handleRemoveRubric = (index: number) => {
+    setNewRubrics(newRubrics.filter((_, idx) => idx !== index));
+  };
+
+  const handleSaveAssignment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newRubrics.length === 0) {
+      alert('Adicione pelo menos um critério de avaliação (rubrica).');
+      return;
+    }
+    
+    const finalRubrics = newRubrics.map((r, idx) => ({
+      id: `r-${Date.now()}-${idx}`,
+      criterion: r.criterion,
+      maxScore: r.maxScore,
+      description: r.description
+    }));
+
+    onAddAssignment({
+      moduleId: newModuleId,
+      teacherId: user.id,
+      classId: newClassId,
+      title: newTitle,
+      description: newDesc,
+      instructions: newInstructions,
+      dueDate: newDueDate,
+      weightPercentage: Number(newWeight),
+      rubrics: finalRubrics
+    });
+
+    setNewTitle('');
+    setNewDesc('');
+    setNewInstructions('');
+    setNewDueDate('2026-06-15T23:59:00');
+    setNewWeight(20);
+    setShowAddAssignmentModal(false);
+    triggerToast('Trabalho criado com sucesso!');
+  };
 
   const activeAssignment = assignments.find(a => a.id === selectedAssignmentId);
 
@@ -110,30 +183,85 @@ export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({
       )}
 
       {/* Header section */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">Trabalhos & Avaliações</h1>
-        <p className="mt-2 text-slate-400">Entrega de projetos práticos, grelhas de avaliação e feedback estruturado.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">Trabalhos & Avaliações</h1>
+          <p className="mt-2 text-slate-400">Entrega de projetos práticos, grelhas de avaliação e feedback estruturado.</p>
+        </div>
+        {(user.role === 'teacher' || user.role === 'admin') && (
+          <button
+            onClick={() => {
+              if (modules.length === 0) {
+                alert('Por favor, crie um módulo primeiro no Planeamento Pedagógico.');
+                return;
+              }
+              setNewModuleId(modules[0]?.id || '');
+              setNewClassId(classes[0]?.id || '');
+              setNewRubrics([
+                { criterion: 'Funcionalidade', maxScore: 5, description: 'O projeto cumpre todos os requisitos de funcionamento.' },
+                { criterion: 'Arquitetura & Clean Code', maxScore: 5, description: 'Organização em funções e separação lógica.' },
+                { criterion: 'Design & UX', maxScore: 5, description: 'Interface responsiva e intuitiva.' }
+              ]);
+              setShowAddAssignmentModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-lg bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/10 cursor-pointer"
+          >
+            <Plus size={16} />
+            Novo Trabalho
+          </button>
+        )}
       </div>
 
       {/* Assignment selector tab bar */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {assignments.map(a => (
-          <button
-            key={a.id}
-            onClick={() => {
-              setSelectedAssignmentId(a.id);
-              setSelectedSubmissionId(null);
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition shrink-0 cursor-pointer ${
-              selectedAssignmentId === a.id
-                ? 'bg-brand-600 border-brand-500 text-white font-bold'
-                : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {a.title}
-          </button>
-        ))}
-      </div>
+      {assignments.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {assignments.map(a => (
+            <button
+              key={a.id}
+              onClick={() => {
+                setSelectedAssignmentId(a.id);
+                setSelectedSubmissionId(null);
+              }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition shrink-0 cursor-pointer ${
+                selectedAssignmentId === a.id
+                  ? 'bg-brand-600 border-brand-500 text-white font-bold'
+                  : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {a.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {assignments.length === 0 && (
+        <div className="p-12 glass rounded-2xl text-center space-y-4 max-w-lg mx-auto mt-6">
+          <div className="mx-auto w-16 h-16 bg-slate-900 border border-slate-800 text-slate-500 rounded-2xl flex items-center justify-center">
+            <CheckSquare size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-white">Nenhum Trabalho Criado</h2>
+          <p className="text-sm text-slate-400">
+            Ainda não foi publicado nenhum trabalho ou tarefa para esta turma.
+          </p>
+          {(user.role === 'teacher' || user.role === 'admin') && (
+            <button
+              onClick={() => {
+                if (modules.length === 0) {
+                  alert('Por favor, crie um módulo primeiro no Planeamento Pedagógico.');
+                  return;
+                }
+                setNewModuleId(modules[0]?.id || '');
+                setNewClassId(classes[0]?.id || '');
+                setShowAddAssignmentModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition cursor-pointer shadow-lg shadow-emerald-500/10"
+            >
+              <Plus size={16} />
+              Criar Primeiro Trabalho
+            </button>
+          )}
+        </div>
+      )}
 
       {activeAssignment && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -442,6 +570,182 @@ export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Modal dialog for creating a new assignment */}
+      {showAddAssignmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-lg p-6 glass rounded-2xl border border-slate-800 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-white">Criar Novo Trabalho / Avaliação</h2>
+
+            <form onSubmit={handleSaveAssignment} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold block">Turma Destino</label>
+                  <select
+                    value={newClassId}
+                    onChange={(e) => setNewClassId(e.target.value)}
+                    className="w-full p-2.5 rounded-lg text-sm bg-slate-900 border border-slate-700 text-white focus:outline-none"
+                  >
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold block">Módulo Associado</label>
+                  <select
+                    value={newModuleId}
+                    onChange={(e) => setNewModuleId(e.target.value)}
+                    className="w-full p-2.5 rounded-lg text-sm bg-slate-900 border border-slate-700 text-white focus:outline-none"
+                  >
+                    {modules.filter(m => m.classId === newClassId || classes.length === 1).map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Título do Trabalho</label>
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Ex: Portfólio Pessoal Estático"
+                  className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold block">Prazo de Entrega</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold block">Peso na Nota Final (%)</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={100}
+                    value={newWeight}
+                    onChange={(e) => setNewWeight(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Descrição Curta</label>
+                <input
+                  type="text"
+                  required
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  placeholder="Ex: Desenvolvimento de página HTML/CSS responsiva."
+                  className="w-full p-2.5 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-semibold block">Instruções de Entrega</label>
+                <textarea
+                  required
+                  value={newInstructions}
+                  onChange={(e) => setNewInstructions(e.target.value)}
+                  placeholder="Ex: O projeto deve conter cabeçalho, secções, CSS Grid, e formulário sem tabelas..."
+                  rows={2}
+                  className="w-full p-3 rounded-lg text-sm glass-input text-slate-200"
+                />
+              </div>
+
+              {/* Rubrics Editor */}
+              <div className="space-y-2 border-t border-slate-800 pt-4">
+                <label className="text-xs font-bold text-white block">Critérios de Avaliação (Rubricas)</label>
+                
+                {/* List of rubrics */}
+                <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                  {newRubrics.map((r, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-slate-900/50 p-2 rounded-lg border border-slate-800 text-xs">
+                      <div>
+                        <span className="font-bold text-slate-200">{r.criterion} </span>
+                        <span className="text-brand-450 text-2xs">({r.maxScore} pts)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRubric(idx)}
+                        className="text-3xs font-semibold text-rose-450 hover:underline cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rubric addition row */}
+                <div className="bg-slate-900/30 p-3 rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-3xs text-slate-400 font-bold uppercase tracking-wider block">Adicionar Critério</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Critério (Ex: Semântica)"
+                      value={rubricCrit}
+                      onChange={(e) => setRubricCrit(e.target.value)}
+                      className="col-span-2 p-2 rounded bg-slate-900 border border-slate-800 text-xs text-slate-200"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      min={1}
+                      max={20}
+                      value={rubricMax}
+                      onChange={(e) => setRubricMax(Number(e.target.value))}
+                      className="p-2 rounded bg-slate-900 border border-slate-800 text-xs text-slate-200"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Descrição sumária"
+                    value={rubricDesc}
+                    onChange={(e) => setRubricDesc(e.target.value)}
+                    className="w-full p-2 rounded bg-slate-900 border border-slate-800 text-xs text-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomRubric}
+                    className="w-full py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-3xs font-semibold uppercase tracking-wider transition cursor-pointer"
+                  >
+                    + Incluir Critério
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setShowAddAssignmentModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition cursor-pointer"
+                >
+                  Publicar Trabalho
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

@@ -29,6 +29,19 @@ export const DashboardStudent: React.FC<DashboardStudentProps> = ({
     .filter(l => l.status === 'planned')
     .sort((a, b) => new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime())[0];
 
+  const formatLessonDate = (dateStr: string) => {
+    try {
+      const dateFormatted = new Date(dateStr).toLocaleDateString('pt-PT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      });
+      return dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1);
+    } catch {
+      return dateStr;
+    }
+  };
+
   const studentSubmissions = submissions.filter(s => s.studentId === user.id);
 
   // Group assignments into: pending and completed
@@ -91,7 +104,7 @@ export const DashboardStudent: React.FC<DashboardStudentProps> = ({
                 {nextLesson ? nextLesson.title : 'Sem aulas planeadas de momento'}
               </h2>
               <p className="text-sm text-slate-300">
-                {nextLesson ? 'Quarta-feira, 20 de Maio às 14:30' : 'Aproveita para colocar os trabalhos em dia!'}
+                {nextLesson ? `Planeada para ${formatLessonDate(nextLesson.plannedDate)}` : 'Aproveita para colocar os trabalhos em dia!'}
               </p>
             </div>
             <div className="hidden sm:block p-4 text-brand-400 bg-brand-500/10 border border-brand-500/20 rounded-xl">

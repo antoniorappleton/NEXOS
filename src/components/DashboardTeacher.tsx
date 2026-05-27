@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Class, Lesson, Assignment, Submission } from '../data/mockData';
+import { User, Class, Lesson, Assignment, Submission, GitHubRepoActivity, AttendanceRecord, AttendanceSession } from '../data/mockData';
 import { Calendar, CheckSquare, Users, AlertCircle, Plus, FileText, ArrowRight, Play, Eye } from 'lucide-react';
 
 interface DashboardTeacherProps {
@@ -9,6 +9,9 @@ interface DashboardTeacherProps {
   assignments: Assignment[];
   submissions: Submission[];
   users: User[];
+  githubRepoActivity: GitHubRepoActivity[];
+  attendanceRecords: AttendanceRecord[];
+  attendanceSessions: AttendanceSession[];
   onNavigate: (view: string, extra?: any) => void;
   onQuickAction: (actionType: string) => void;
 }
@@ -20,6 +23,9 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
   assignments,
   submissions,
   users,
+  githubRepoActivity,
+  attendanceRecords,
+  attendanceSessions,
   onNavigate,
   onQuickAction,
 }) => {
@@ -48,13 +54,114 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
     };
   });
 
-  // Recent activity logs simulation
-  const recentActivities = [
-    { type: 'submission', text: 'Pedro Silva entregou "Dashboard de Finanças React"', time: 'Há 15 min' },
-    { type: 'github', text: 'Maria Santos associou o repositório "my-first-portfolio"', time: 'Há 2 horas' },
-    { type: 'attendance', text: 'João Pires faltou a 2 aulas consecutivas de JavaScript', time: 'Ontem', alert: true },
-    { type: 'system', text: 'Novo módulo "Bases de Dados & Firebase" foi publicado por Professora Maria Costa', time: 'Há 2 dias' },
-  ];
+  // Helper to format activity times dynamically
+  const formatActivityTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (isNaN(diffMs)) return 'Recentemente';
+    if (diffMins < 0) return 'Recentemente';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+    if (diffHours < 24) return `Há ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+    if (diffHours < 48) return 'Ontem';
+    return date.toLocaleDateString('pt-PT');
+  };
+
+  // Build dynamic activities list
+  const dynamicActivities: Array<{ type: string; text: string; dateVal: Date; time: string; alert?: boolean }> = [];
+
+  // 1. Submissions
+  submissions.forEach(sub => {
+    if (!sub.submittedAt) return;
+    const student = users.find(u => u.id === sub.studentId);
+    const assignment = assignments.find(a => a.id === sub.assignmentId);
+    if (student && assignment) {
+      dynamicActivities.push({
+        type: 'submission',
+        text: `${student.name} entregou "${assignment.title}"`,
+        dateVal: new Date(sub.submittedAt),
+        time: formatActivityTime(sub.submittedAt),
+      });
+    }
+  });
+
+  // 2. GitHub activities
+  githubRepoActivity.forEach(act => {
+    if (!act.lastCommitDate) return;
+    const student = users.find(u => u.id === act.studentId);
+    if (student) {
+      dynamicActivities.push({
+        type: 'github',
+        text: `${student.name} comitou em "${act.repoName}"`,
+        dateVal: new Date(act.lastCommitDate),
+        time: formatActivityTime(act.lastCommitDate),
+      });
+    }
+  });
+
+  // 3. Absences/Late records
+  attendanceRecords.forEach(rec => {
+    if (rec.status === 'present') return;
+    const student = users.find(u => u.id === rec.studentId);
+    const session = attendanceSessions.find(s => s.id === rec.sessionId);
+    const lesson = session ? lessons.find(l => l.id === session.lessonId) : null;
+    
+    if (student && session && lesson) {
+      const isAbsent = rec.status === 'absent';
+      dynamicActivities.push({
+        type: 'attendance',
+        text: `${student.name} ${isAbsent ? 'faltou' : 'atrasou-se'} à aula "${lesson.title}"`,
+        dateVal: new Date(session.date),
+        time: formatActivityTime(session.date),
+        alert: isAbsent,
+      });
+    }
+  });
+
+  // 4. Summarized/Done lessons
+  lessons.forEach(l => {
+    if (l.status !== 'done' || !l.plannedDate) return;
+    dynamicActivities.push({
+      type: 'system',
+      text: `Aula "${l.title}" foi sumariada e encerrada`,
+      dateVal: new Date(l.plannedDate),
+      time: formatActivityTime(l.plannedDate),
+    });
+  });
+
+  // Sort activities by date descending and get the top 4
+  const recentActivities = dynamicActivities
+    .sort((a, b) => b.dateVal.getTime() - a.dateVal.getTime())
+    .slice(0, 4);
+
+  // Dynamic calculations for alerts: Count students with more than 1 absence or with average grade < 9.5
+  const studentsAtRisk = users.filter(u => {
+    if (u.role !== 'student') return false;
+    
+    // Check absences
+    const absences = attendanceRecords.filter(r => r.studentId === u.id && r.status === 'absent').length;
+    if (absences >= 2) return true;
+    
+    // Check average grade
+    const studentSubmissions = submissions.filter(s => s.studentId === u.id && s.finalGrade !== undefined && s.finalGrade !== null);
+    if (studentSubmissions.length > 0) {
+      const sum = studentSubmissions.reduce((acc, curr) => acc + (curr.finalGrade || 0), 0);
+      const avg = sum / studentSubmissions.length;
+      if (avg < 9.5) return true;
+    }
+    return false;
+  }).length;
+
+  const currentDateFormatted = new Date().toLocaleDateString('pt-PT', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const capitalizedDate = currentDateFormatted.charAt(0).toUpperCase() + currentDateFormatted.slice(1);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -62,10 +169,10 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-            Bem-vindo, {user.name.split(' ')[1]}
+            Bem-vindo, {user.name.split(' ')[1] || user.name}
           </h1>
           <p className="mt-2 text-slate-400">
-            Painel Geral do Docente — Quarta-feira, 20 de Maio de 2026
+            Painel Geral do Docente — {capitalizedDate}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -115,7 +222,7 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
               {nextLesson ? nextLesson.title : 'Sem aulas planeadas'}
             </span>
             <p className="mt-1 text-xs text-slate-500">
-              {nextLesson ? `Hoje às ${nextLesson.plannedDate === '2026-05-20' ? '14:30' : nextLesson.plannedDate}` : 'Planeamento completo'}
+              {nextLesson ? `Planeada para ${new Date(nextLesson.plannedDate).toLocaleDateString('pt-PT')}` : 'Planeamento completo'}
             </p>
           </div>
         </div>
@@ -143,7 +250,7 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <span className="text-3xl font-bold text-white">2</span>
+            <span className="text-3xl font-bold text-white">{studentsAtRisk}</span>
             <p className="mt-1 text-xs text-slate-500">Alunos em risco de reprova</p>
           </div>
         </div>
