@@ -11,11 +11,12 @@ async function unregisterOldServiceWorkers() {
   if ('serviceWorker' in navigator) {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
-      if (regs.length > 0) {
-        console.log('Unregistering', regs.length, 'service worker(s)');
-        await Promise.all(regs.map(r => r.unregister()));
-        // Also attempt to clear the controller reference
-        try { (navigator as any).serviceWorker?.controller?.postMessage?.({type:'clients-clear'}) } catch {}
+      const ourScope = new URL('./', window.location.href).href;
+      for (const r of regs) {
+        if (r.scope !== ourScope) {
+          console.log('Unregistering stray service worker scope:', r.scope);
+          await r.unregister();
+        }
       }
     } catch (err) {
       console.warn('Failed to unregister service workers', err);

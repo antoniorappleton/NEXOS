@@ -395,8 +395,16 @@ export const App: React.FC = () => {
                 }
                 await fetchFirebaseData();
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error('Erro ao processar redirect result profile:', err);
+              const errMsg = err?.message || '';
+              if (errMsg.includes('Database') || errMsg.includes('default') || err?.code === 'unavailable') {
+                setAuthError('A base de dados Cloud Firestore "(default)" não foi encontrada. Vá ao Console do Firebase, clique em "Firestore Database" e clique em "Criar base de dados" (em modo de teste).');
+              } else {
+                setAuthError(errMsg || 'Erro ao carregar perfil no Firestore.');
+              }
+              setSession(null);
+              await signOut(auth);
             }
           }
         } catch (e: any) {
@@ -453,8 +461,16 @@ export const App: React.FC = () => {
               // Reload profiles into state
               await fetchFirebaseData();
             }
-          } catch (err) {
+          } catch (err: any) {
             console.error('Erro ao processar perfil após autenticação:', err);
+            const errMsg = err?.message || '';
+            if (errMsg.includes('Database') || errMsg.includes('default') || err?.code === 'unavailable') {
+              setAuthError('A base de dados Cloud Firestore "(default)" não foi encontrada. Vá ao Console do Firebase, clique em "Firestore Database" e clique em "Criar base de dados" (em modo de teste).');
+            } else {
+              setAuthError(errMsg || 'Erro ao processar perfil após autenticação.');
+            }
+            setSession(null);
+            await signOut(auth);
           } finally {
             setLoading(false);
           }
