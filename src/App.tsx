@@ -29,7 +29,7 @@ import {
 // Firebase client & Views
 import { isFirebaseConfigured, auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
-import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc, where } from 'firebase/firestore';
 import { SetupInstructions } from './components/SetupInstructions';
 import { LoginView } from './components/LoginView';
 
@@ -66,6 +66,7 @@ export const App: React.FC = () => {
   const [bypassFirebase, setBypassFirebase] = useState(() => localStorage.getItem('devclass_offline_mode') === 'true');
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Global States (Default to mock data, populated from Firebase if online)
   const [users, setUsers] = useState<User[]>(initialUsers);
@@ -96,7 +97,7 @@ export const App: React.FC = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
-  const [editRole, setEditRole] = useState<'student'|'teacher'|'admin'>('student');
+  const [editRole, setEditRole] = useState<'student' | 'teacher' | 'admin'>('student');
 
   // --- FIREBASE SYNCHRONIZATION ---
 
@@ -353,36 +354,61 @@ export const App: React.FC = () => {
       if (isFirebaseConfigured && !bypassFirebase) {
         try {
           const redirectResult = await getRedirectResult(auth);
+          console.log('getRedirectResult resolved with:', redirectResult);
           if (redirectResult && redirectResult.user) {
             console.log('Processed getRedirectResult for', redirectResult.user.uid);
             setSession(redirectResult.user);
+            setAuthError(null);
             try {
               await fetchFirebaseData();
               const profileRef = doc(db, 'profiles', redirectResult.user.uid);
               const profileSnap = await getDoc(profileRef);
               if (!profileSnap.exists()) {
-                const chosenRole = (() => { try { return (localStorage.getItem('google_login_role') as any) || 'student' } catch { return 'student' } })();
+                const savedRole = (typeof window !== 'undefined' ? localStorage.getItem('google_login_role') : null) || 'student';
+                let finalRole = savedRole;
+                let finalName = (redirectResult.user as any).displayName || 'Utilizador Google';
+                let finalAvatar = (redirectResult.user as any).photoURL || null;
+
+                if (redirectResult.user.email) {
+                  const q = query(collection(db, 'profiles'), where('email', '==', redirectResult.user.email));
+                  const querySnap = await getDocs(q);
+                  if (!querySnap.empty) {
+                    const existingProfile = querySnap.docs[0].data();
+                    finalRole = existingProfile.role || finalRole;
+                    finalName = existingProfile.name || finalName;
+                    finalAvatar = existingProfile.avatar || finalAvatar;
+                    if (querySnap.docs[0].id !== redirectResult.user.uid) {
+                      await deleteDoc(doc(db, 'profiles', querySnap.docs[0].id));
+                    }
+                  }
+                }
+
                 await setDoc(profileRef, {
-                  name: (redirectResult.user as any).displayName || 'Utilizador Google',
+                  name: finalName,
                   email: (redirectResult.user as any).email || '',
-                  role: chosenRole,
-                  avatar: (redirectResult.user as any).photoURL || null,
+                  role: finalRole,
+                  avatar: finalAvatar,
                   createdAt: new Date().toISOString()
                 });
-                try { localStorage.removeItem('google_login_role') } catch {}
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('google_login_role');
+                }
                 await fetchFirebaseData();
               }
             } catch (err) {
               console.error('Erro ao processar redirect result profile:', err);
             }
           }
-        } catch (e) {
-          // no redirect result or error reading it
-          // console.debug('getRedirectResult:', e?.code || e?.message || e);
+        } catch (e: any) {
+          console.error('Erro no getRedirectResult do Firebase:', e);
+          if (e?.code === 'auth/unauthorized-domain') {
+            setAuthError('O domínio antoniorappleton.github.io não está autorizado no console do Firebase. Adicione-o em Authentication -> Settings -> Authorized Domains.');
+          } else {
+            setAuthError(e?.message || 'Erro ao processar o resultado da autenticação.');
+          }
         }
       }
     })();
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSession(user);
       console.log('onAuthStateChanged fired. user:', user, 'location:', typeof window !== 'undefined' ? window.location.href : 'n/a');
@@ -395,15 +421,35 @@ export const App: React.FC = () => {
             const profileRef = doc(db, 'profiles', user.uid);
             const profileSnap = await getDoc(profileRef);
             if (!profileSnap.exists()) {
-              const chosenRole = (() => { try { return (localStorage.getItem('google_login_role') as any) || 'student' } catch { return 'student' } })();
+              const savedRole = (typeof window !== 'undefined' ? localStorage.getItem('google_login_role') : null) || 'student';
+              let finalRole = savedRole;
+              let finalName = (user as any).displayName || 'Utilizador Google';
+              let finalAvatar = (user as any).photoURL || null;
+
+              if (user.email) {
+                const q = query(collection(db, 'profiles'), where('email', '==', user.email));
+                const querySnap = await getDocs(q);
+                if (!querySnap.empty) {
+                  const existingProfile = querySnap.docs[0].data();
+                  finalRole = existingProfile.role || finalRole;
+                  finalName = existingProfile.name || finalName;
+                  finalAvatar = existingProfile.avatar || finalAvatar;
+                  if (querySnap.docs[0].id !== user.uid) {
+                    await deleteDoc(doc(db, 'profiles', querySnap.docs[0].id));
+                  }
+                }
+              }
+
               await setDoc(profileRef, {
-                name: (user as any).displayName || 'Utilizador Google',
+                name: finalName,
                 email: (user as any).email || '',
-                role: chosenRole,
-                avatar: (user as any).photoURL || null,
+                role: finalRole,
+                avatar: finalAvatar,
                 createdAt: new Date().toISOString()
               });
-              try { localStorage.removeItem('google_login_role') } catch {}
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('google_login_role');
+              }
               // Reload profiles into state
               await fetchFirebaseData();
             }
@@ -437,34 +483,6 @@ export const App: React.FC = () => {
     setCurrentView(view);
   };
 
-  // --- DEBUG: small overlay to help diagnose redirect/auth issues ---
-  const DebugOverlay: React.FC = () => {
-    const [registrations, setRegistrations] = useState<string[]>([]);
-    useEffect(() => {
-      (async () => {
-        if ('serviceWorker' in navigator) {
-          try {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            setRegistrations(regs.map(r => r.scope));
-          } catch (e) {
-            setRegistrations(['error']);
-          }
-        }
-      })();
-    }, []);
-
-    return (
-      <div style={{position:'fixed',right:12,top:12,zIndex:9999,background:'rgba(0,0,0,0.6)',color:'#fff',padding:12,borderRadius:8,fontSize:12,maxWidth:380}}>
-        <div style={{fontWeight:700,marginBottom:6}}>Dev Debug</div>
-        <div><strong>URL:</strong> {typeof window !== 'undefined' ? window.location.href : 'n/a'}</div>
-        <div><strong>Host:</strong> {typeof window !== 'undefined' ? window.location.hostname : 'n/a'}</div>
-        <div><strong>Auth session:</strong> {session ? JSON.stringify({uid: (session as any).uid, email: (session as any).email}) : 'null'}</div>
-        <div><strong>auth.currentUser:</strong> {JSON.stringify((auth as any)?.currentUser ? {uid: (auth as any).currentUser.uid, email: (auth as any).currentUser.email} : null)}</div>
-        <div><strong>SW regs:</strong> {registrations.length ? registrations.join(', ') : 'none'}</div>
-      </div>
-    );
-  };
-
   const handleRoleChange = (userId: string) => {
     const matchedUser = users.find(u => u.id === userId);
     if (matchedUser) {
@@ -477,12 +495,12 @@ export const App: React.FC = () => {
   const handleOpenEditProfile = () => {
     setEditName(currentUser?.name || '');
     setEditAvatar(currentUser?.avatar || '');
-    setEditRole((currentUser?.role as any) || 'student');
+    setEditRole(currentUser?.role || 'student');
     setShowEditProfile(true);
   };
 
   const handleSaveProfile = async () => {
-    const newData: any = { name: editName, avatar: editAvatar, role: editRole };
+    const newData = { name: editName, avatar: editAvatar, role: editRole };
     if (isFirebaseConfigured && !bypassFirebase) {
       try {
         await updateDoc(doc(db, 'profiles', currentUser.id), newData);
@@ -1115,6 +1133,7 @@ export const App: React.FC = () => {
           localStorage.setItem('devclass_offline_mode', 'true');
         }}
         onLoginSuccess={() => fetchFirebaseData()}
+        externalError={authError}
       />
     );
   }
@@ -1310,22 +1329,52 @@ export const App: React.FC = () => {
 
       {/* Edit Profile Modal */}
       {showEditProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl">
-            <h3 className="text-sm font-bold text-white mb-3">Editar Perfil</h3>
-            <label className="text-3xs text-slate-400">Nome</label>
-            <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
-            <label className="text-3xs text-slate-400">URL Avatar</label>
-            <input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
-            <label className="text-3xs text-slate-400">Perfil / Cargo</label>
-            <select value={editRole} onChange={(e:any) => setEditRole(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none">
-              <option value="student">Aluno</option>
-              <option value="teacher">Professor</option>
-              <option value="admin">Administrador</option>
-            </select>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button onClick={() => setShowEditProfile(false)} className="px-3 py-1.5 text-3xs bg-slate-800 hover:bg-slate-750 rounded-md text-slate-300 border border-slate-700">Cancelar</button>
-              <button onClick={handleSaveProfile} className="px-3 py-1.5 text-3xs bg-emerald-600 hover:bg-emerald-700 rounded-md text-white font-bold">Guardar</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+          <div className="w-full max-w-md p-6 bg-[#111726] border border-slate-800 rounded-2xl shadow-2xl">
+            <h3 className="text-sm font-bold text-white mb-4">Editar Perfil</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-3xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Nome</label>
+                <input 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)} 
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white outline-none focus:border-brand-500 transition" 
+                />
+              </div>
+              <div>
+                <label className="text-3xs text-slate-400 font-bold uppercase tracking-wider block mb-1">URL Avatar</label>
+                <input 
+                  value={editAvatar} 
+                  onChange={(e) => setEditAvatar(e.target.value)} 
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white outline-none focus:border-brand-500 transition" 
+                />
+              </div>
+              <div>
+                <label className="text-3xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Cargo / Perfil</label>
+                <select
+                  value={editRole}
+                  onChange={(e: any) => setEditRole(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white outline-none focus:border-brand-500 transition font-semibold"
+                >
+                  <option value="student">Aluno</option>
+                  <option value="teacher">Professor</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-6">
+              <button 
+                onClick={() => setShowEditProfile(false)} 
+                className="px-3.5 py-2 text-3xs bg-slate-800 hover:bg-slate-750 rounded-lg text-slate-300 border border-slate-700 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSaveProfile} 
+                className="px-3.5 py-2 text-3xs bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-bold cursor-pointer"
+              >
+                Guardar
+              </button>
             </div>
           </div>
         </div>
