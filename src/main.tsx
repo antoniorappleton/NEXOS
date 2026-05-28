@@ -31,12 +31,18 @@ async function unregisterOldServiceWorkers() {
       <App />
     </StrictMode>,
   );
-  // Register the new service worker (if available). Use relative path so it
-  // works on GitHub Pages (`/NEXOS/service-worker.js`) and Firebase hosting.
+  // Register the new service worker only if there's no controlling SW.
+  // Delay slightly so auth popup/redirect messaging settles and to avoid
+  // message-channel races that can surface as "message channel closed".
   if ('serviceWorker' in navigator) {
     try {
-      const reg = await navigator.serviceWorker.register('./service-worker.js');
-      console.log('Service worker registered:', reg);
+      if (!navigator.serviceWorker.controller) {
+        await new Promise(res => setTimeout(res, 800));
+        const reg = await navigator.serviceWorker.register('./service-worker.js');
+        console.log('Service worker registered:', reg);
+      } else {
+        console.log('Service worker controller already present; skipping registration.');
+      }
     } catch (err) {
       console.warn('Service worker registration failed:', err);
     }
