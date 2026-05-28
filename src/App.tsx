@@ -29,7 +29,7 @@ import {
 // Firebase client & Views
 import { isFirebaseConfigured, auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { SetupInstructions } from './components/SetupInstructions';
 import { LoginView } from './components/LoginView';
 
@@ -346,7 +346,30 @@ export const App: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSession(user);
       if (user) {
-        fetchFirebaseData();
+        // When a user signs in via redirect, we must ensure their profile exists
+        // in Firestore. Fetch data and create a profile doc if missing.
+        (async () => {
+          try {
+            await fetchFirebaseData();
+            const profileRef = doc(db, 'profiles', user.uid);
+            const profileSnap = await getDoc(profileRef);
+            if (!profileSnap.exists()) {
+              await setDoc(profileRef, {
+                name: (user as any).displayName || 'Utilizador Google',
+                email: (user as any).email || '',
+                role: 'student',
+                avatar: (user as any).photoURL || null,
+                createdAt: new Date().toISOString()
+              });
+              // Reload profiles into state
+              await fetchFirebaseData();
+            }
+          } catch (err) {
+            console.error('Erro ao processar perfil após autenticação:', err);
+          } finally {
+            setLoading(false);
+          }
+        })();
       } else {
         setLoading(false);
       }
