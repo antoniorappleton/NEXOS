@@ -93,6 +93,9 @@ export const App: React.FC = () => {
 
   // Floating selector display
   const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
 
   // --- FIREBASE SYNCHRONIZATION ---
 
@@ -374,6 +377,31 @@ export const App: React.FC = () => {
       setCurrentUser(matchedUser);
       setCurrentView(matchedUser.role === 'admin' ? 'admin' : 'dashboard');
       setShowRoleSelector(false);
+    }
+  };
+
+  const handleOpenEditProfile = () => {
+    setEditName(currentUser?.name || '');
+    setEditAvatar(currentUser?.avatar || '');
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    const newData = { name: editName, avatar: editAvatar };
+    if (isFirebaseConfigured && !bypassFirebase) {
+      try {
+        await updateDoc(doc(db, 'profiles', currentUser.id), newData);
+        await fetchFirebaseData();
+        setShowEditProfile(false);
+      } catch (err) {
+        console.error('Error updating profile:', err);
+        alert('Erro ao atualizar perfil. Veja a consola para detalhes.');
+      }
+    } else {
+      // offline/demo mode: update local state
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...newData } : u));
+      setCurrentUser(prev => prev ? { ...prev, ...newData } : prev as any);
+      setShowEditProfile(false);
     }
   };
 
@@ -1055,6 +1083,15 @@ export const App: React.FC = () => {
             </div>
           </div>
 
+          <div className="pt-2 flex items-center gap-2">
+            <button
+              onClick={handleOpenEditProfile}
+              className="px-3 py-1.5 text-3xs bg-slate-800 hover:bg-slate-750 rounded-md text-slate-300 border border-slate-700"
+            >
+              Editar Perfil
+            </button>
+          </div>
+
           {/* Database connection indicator & Logout */}
           <div className="pt-2 border-t border-slate-850 flex flex-col gap-1.5 text-4xs">
             {isFirebaseConfigured && !bypassFirebase ? (
@@ -1175,6 +1212,23 @@ export const App: React.FC = () => {
         </div>
       )}
 
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl">
+            <h3 className="text-sm font-bold text-white mb-3">Editar Perfil</h3>
+            <label className="text-3xs text-slate-400">Nome</label>
+            <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
+            <label className="text-3xs text-slate-400">URL Avatar</label>
+            <input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button onClick={() => setShowEditProfile(false)} className="px-3 py-1.5 text-3xs bg-slate-800 hover:bg-slate-750 rounded-md text-slate-300 border border-slate-700">Cancelar</button>
+              <button onClick={handleSaveProfile} className="px-3 py-1.5 text-3xs bg-emerald-600 hover:bg-emerald-700 rounded-md text-white font-bold">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

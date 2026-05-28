@@ -2,10 +2,17 @@
   "name": "codecampus",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://antoniorappleton.github.io/NEXOS/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antoniorappleton/NEXOS.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:gh": "tsc -b && vite build --base /NEXOS/",
+    "build:local": "tsc -b && vite build --base ./",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
