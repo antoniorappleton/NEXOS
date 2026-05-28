@@ -278,6 +278,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
                     <input
                       type="email"
                       required
+                      autoComplete="username"
                       placeholder="seu.nome@escola.pt"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -305,6 +306,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
                     <input
                       type="email"
                       required
+                      autoComplete="username"
                       placeholder="exemplo@escola.pt"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
