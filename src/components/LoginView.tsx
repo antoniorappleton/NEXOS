@@ -82,6 +82,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
   const handleGoogleLogin = async () => {
     setLoading(true);
     setErrorMsg(null);
+    // Persist chosen role so it survives redirect-based sign-in
+    try {
+      localStorage.setItem('google_login_role', role);
+    } catch (e) {
+      // ignore storage errors
+    }
     try {
       const provider = new GoogleAuthProvider();
       // Force redirect flow on GitHub Pages to avoid popup/COOP issues there.
@@ -117,13 +123,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
       
       if (!docSnap.exists()) {
         // Create user profile in Firestore
+        const chosenRole = (() => {
+          try { return (localStorage.getItem('google_login_role') as any) || 'student' } catch { return 'student' }
+        })();
         await setDoc(docRef, {
           name: userCred.user.displayName || 'Utilizador Google',
           email: userCred.user.email || '',
-          role: 'student', // default role
+          role: chosenRole,
           avatar: userCred.user.photoURL || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face`,
           createdAt: new Date().toISOString()
         });
+        try { localStorage.removeItem('google_login_role') } catch {}
       }
       
       onLoginSuccess();
@@ -355,6 +365,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
             </div>
 
             {/* Google Button */}
+            <div className="mb-3">
+              <label className="text-4xs text-slate-400 font-bold uppercase tracking-wider block mb-2">Perfil a usar no Login Google (opcional)</label>
+              <select
+                value={role}
+                onChange={(e: any) => setRole(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-brand-500 transition font-semibold"
+              >
+                <option value="student">Aluno</option>
+                <option value="teacher">Professor</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
             <button
               type="button"
               onClick={handleGoogleLogin}

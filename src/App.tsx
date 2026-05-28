@@ -96,6 +96,7 @@ export const App: React.FC = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
+  const [editRole, setEditRole] = useState<'student'|'teacher'|'admin'>('student');
 
   // --- FIREBASE SYNCHRONIZATION ---
 
@@ -360,13 +361,15 @@ export const App: React.FC = () => {
               const profileRef = doc(db, 'profiles', redirectResult.user.uid);
               const profileSnap = await getDoc(profileRef);
               if (!profileSnap.exists()) {
+                const chosenRole = (() => { try { return (localStorage.getItem('google_login_role') as any) || 'student' } catch { return 'student' } })();
                 await setDoc(profileRef, {
                   name: (redirectResult.user as any).displayName || 'Utilizador Google',
                   email: (redirectResult.user as any).email || '',
-                  role: 'student',
+                  role: chosenRole,
                   avatar: (redirectResult.user as any).photoURL || null,
                   createdAt: new Date().toISOString()
                 });
+                try { localStorage.removeItem('google_login_role') } catch {}
                 await fetchFirebaseData();
               }
             } catch (err) {
@@ -392,13 +395,15 @@ export const App: React.FC = () => {
             const profileRef = doc(db, 'profiles', user.uid);
             const profileSnap = await getDoc(profileRef);
             if (!profileSnap.exists()) {
+              const chosenRole = (() => { try { return (localStorage.getItem('google_login_role') as any) || 'student' } catch { return 'student' } })();
               await setDoc(profileRef, {
                 name: (user as any).displayName || 'Utilizador Google',
                 email: (user as any).email || '',
-                role: 'student',
+                role: chosenRole,
                 avatar: (user as any).photoURL || null,
                 createdAt: new Date().toISOString()
               });
+              try { localStorage.removeItem('google_login_role') } catch {}
               // Reload profiles into state
               await fetchFirebaseData();
             }
@@ -472,11 +477,12 @@ export const App: React.FC = () => {
   const handleOpenEditProfile = () => {
     setEditName(currentUser?.name || '');
     setEditAvatar(currentUser?.avatar || '');
+    setEditRole((currentUser?.role as any) || 'student');
     setShowEditProfile(true);
   };
 
   const handleSaveProfile = async () => {
-    const newData = { name: editName, avatar: editAvatar };
+    const newData: any = { name: editName, avatar: editAvatar, role: editRole };
     if (isFirebaseConfigured && !bypassFirebase) {
       try {
         await updateDoc(doc(db, 'profiles', currentUser.id), newData);
@@ -1311,6 +1317,12 @@ export const App: React.FC = () => {
             <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
             <label className="text-3xs text-slate-400">URL Avatar</label>
             <input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none" />
+            <label className="text-3xs text-slate-400">Perfil / Cargo</label>
+            <select value={editRole} onChange={(e:any) => setEditRole(e.target.value)} className="w-full p-2 my-2 rounded bg-slate-800 text-sm text-white border border-slate-700 outline-none">
+              <option value="student">Aluno</option>
+              <option value="teacher">Professor</option>
+              <option value="admin">Administrador</option>
+            </select>
             <div className="flex items-center justify-end gap-2 mt-4">
               <button onClick={() => setShowEditProfile(false)} className="px-3 py-1.5 text-3xs bg-slate-800 hover:bg-slate-750 rounded-md text-slate-300 border border-slate-700">Cancelar</button>
               <button onClick={handleSaveProfile} className="px-3 py-1.5 text-3xs bg-emerald-600 hover:bg-emerald-700 rounded-md text-white font-bold">Guardar</button>
