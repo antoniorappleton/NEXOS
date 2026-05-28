@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { Terminal, Mail, Lock, UserPlus, LogIn, ChevronRight, Loader2, Sparkles, UserCheck, Check, AlertCircle } from 'lucide-react';
 import { seedDatabase } from '../lib/seedFirebase';
@@ -84,7 +84,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
     setErrorMsg(null);
     try {
       const provider = new GoogleAuthProvider();
-      const userCred = await signInWithPopup(auth, provider);
+      // Try popup first (better UX). If it fails due to COOP/popup-block or other
+      // environment issues, fallback to redirect flow which does not rely on
+      // window.closed polling and avoids Cross-Origin-Opener-Policy problems.
+      let userCred: any = null;
+      try {
+        userCred = await signInWithPopup(auth, provider);
+      } catch (popupErr: any) {
+        console.warn('Google popup failed, falling back to redirect:', popupErr?.code || popupErr?.message || popupErr);
+        // If popup is not supported in this environment (COOP/blocked), use redirect
+        try {
+          await signInWithRedirect(auth, provider);
+          return; // Redirecting — the flow will continue after redirect.
+        } catch (redirectErr: any) {
+          console.error('Redirect fallback also failed:', redirectErr);
+          throw redirectErr;
+        }
+      }
       
       // Check if user profile already exists
       const docRef = doc(db, 'profiles', userCred.user.uid);
@@ -104,7 +120,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
       onLoginSuccess();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Erro ao autenticar com o Google.');
+      // Friendly message for known auth errors
+      if (err?.code === 'auth/unauthorized-domain') {
+        setErrorMsg('Domínio não autorizado no Firebase. Adicione antoniorappleton.github.io nas Authorized domains do Firebase Console.');
+      } else if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+        setErrorMsg('O navegador bloqueou o popup. Tente em modo incógnito sem extensões, ou use o botão de login novamente para usar o fluxo de redirecionamento.');
+      } else {
+        setErrorMsg(err.message || 'Erro ao autenticar com o Google.');
+      }
     } finally {
       setLoading(false);
     }
