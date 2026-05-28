@@ -84,7 +84,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess }
     setErrorMsg(null);
     try {
       const provider = new GoogleAuthProvider();
-      // Try popup first (better UX). If it fails due to COOP/popup-block or other
+      // Force redirect flow on GitHub Pages to avoid popup/COOP issues there.
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isGitHubPages = hostname.endsWith('github.io');
+      if (isGitHubPages) {
+        setErrorMsg('A abrir o Google para autenticação... (redirecionamento)');
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      // Try popup first (better UX) in other environments. If it fails due to COOP/popup-block or other
       // environment issues, fallback to redirect flow which does not rely on
       // window.closed polling and avoids Cross-Origin-Opener-Policy problems.
       let userCred: any = null;
