@@ -99,6 +99,10 @@ export const App: React.FC = () => {
 
   // --- FIREBASE SYNCHRONIZATION ---
 
+  // Debug overlay flag: show when ?debug=1 is present
+  const showDebug = typeof window !== 'undefined' && (window.location.search.includes('debug=1') || localStorage.getItem('dev_debug') === '1');
+
+
   const fetchFirebaseData = async () => {
     if (!isFirebaseConfigured || bypassFirebase) return;
     setLoading(true);
@@ -345,6 +349,7 @@ export const App: React.FC = () => {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSession(user);
+      console.log('onAuthStateChanged fired. user:', user, 'location:', typeof window !== 'undefined' ? window.location.href : 'n/a');
       if (user) {
         // When a user signs in via redirect, we must ensure their profile exists
         // in Firestore. Fetch data and create a profile doc if missing.
@@ -392,6 +397,34 @@ export const App: React.FC = () => {
   // Navigation handlers
   const handleNavigate = (view: string) => {
     setCurrentView(view);
+  };
+
+  // --- DEBUG: small overlay to help diagnose redirect/auth issues ---
+  const DebugOverlay: React.FC = () => {
+    const [registrations, setRegistrations] = useState<string[]>([]);
+    useEffect(() => {
+      (async () => {
+        if ('serviceWorker' in navigator) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            setRegistrations(regs.map(r => r.scope));
+          } catch (e) {
+            setRegistrations(['error']);
+          }
+        }
+      })();
+    }, []);
+
+    return (
+      <div style={{position:'fixed',right:12,top:12,zIndex:9999,background:'rgba(0,0,0,0.6)',color:'#fff',padding:12,borderRadius:8,fontSize:12,maxWidth:380}}>
+        <div style={{fontWeight:700,marginBottom:6}}>Dev Debug</div>
+        <div><strong>URL:</strong> {typeof window !== 'undefined' ? window.location.href : 'n/a'}</div>
+        <div><strong>Host:</strong> {typeof window !== 'undefined' ? window.location.hostname : 'n/a'}</div>
+        <div><strong>Auth session:</strong> {session ? JSON.stringify({uid: (session as any).uid, email: (session as any).email}) : 'null'}</div>
+        <div><strong>auth.currentUser:</strong> {JSON.stringify((auth as any)?.currentUser ? {uid: (auth as any).currentUser.uid, email: (auth as any).currentUser.email} : null)}</div>
+        <div><strong>SW regs:</strong> {registrations.length ? registrations.join(', ') : 'none'}</div>
+      </div>
+    );
   };
 
   const handleRoleChange = (userId: string) => {
