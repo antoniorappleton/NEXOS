@@ -28,7 +28,7 @@ import {
 
 // Firebase client & Views
 import { isFirebaseConfigured, auth, db } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
 import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { SetupInstructions } from './components/SetupInstructions';
 import { LoginView } from './components/LoginView';
@@ -346,6 +346,39 @@ export const App: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    // Try to resolve a redirect sign-in result (returns UserCredential if present)
+    (async () => {
+      if (isFirebaseConfigured && !bypassFirebase) {
+        try {
+          const redirectResult = await getRedirectResult(auth);
+          if (redirectResult && redirectResult.user) {
+            console.log('Processed getRedirectResult for', redirectResult.user.uid);
+            setSession(redirectResult.user);
+            try {
+              await fetchFirebaseData();
+              const profileRef = doc(db, 'profiles', redirectResult.user.uid);
+              const profileSnap = await getDoc(profileRef);
+              if (!profileSnap.exists()) {
+                await setDoc(profileRef, {
+                  name: (redirectResult.user as any).displayName || 'Utilizador Google',
+                  email: (redirectResult.user as any).email || '',
+                  role: 'student',
+                  avatar: (redirectResult.user as any).photoURL || null,
+                  createdAt: new Date().toISOString()
+                });
+                await fetchFirebaseData();
+              }
+            } catch (err) {
+              console.error('Erro ao processar redirect result profile:', err);
+            }
+          }
+        } catch (e) {
+          // no redirect result or error reading it
+          // console.debug('getRedirectResult:', e?.code || e?.message || e);
+        }
+      }
+    })();
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSession(user);
