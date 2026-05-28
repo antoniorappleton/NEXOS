@@ -30,4 +30,14 @@ async function unregisterOldServiceWorkers() {
       <App />
     </StrictMode>,
   );
+  // Register the new service worker (if available). Use relative path so it
+  // works on GitHub Pages (`/NEXOS/service-worker.js`) and Firebase hosting.
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.register('./service-worker.js');
+      console.log('Service worker registered:', reg);
+    } catch (err) {
+      console.warn('Service worker registration failed:', err);
+    }
+  }
 })();
