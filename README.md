@@ -76,7 +76,7 @@ src/
  │    ├── Icons.tsx                # SVGs otimizados para logos de marca (GitHub/Youtube)
  │    └── PedagogicalPlanning.tsx  # Planeamento pedagógico e aulas
  ├── data/
- │    └── mockData.ts      # Modelos de dados de domínio e massa de testes
+ │    └── mockData.ts      # Tipos de dados de domínio
  ├── App.tsx               # Orquestrador central de rotas e estado global
  ├── index.css             # Tema central, variáveis e utilitários de glassmorphism
  └── main.tsx              # Ponto de entrada do React

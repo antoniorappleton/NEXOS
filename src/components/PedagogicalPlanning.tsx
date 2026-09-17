@@ -54,11 +54,11 @@ export const PedagogicalPlanning: React.FC<PedagogicalPlanningProps> = ({
     setLogObs(lesson.observations || '');
     
     // Pre-populate attendance to 'present' for all students
-    const initialAttendance: { [studentId: string]: 'present' | 'absent' | 'late' | 'justified' } = {};
+    const attendanceDraft: { [studentId: string]: 'present' | 'absent' | 'late' | 'justified' } = {};
     students.forEach(s => {
-      initialAttendance[s.id] = 'present';
+      attendanceDraft[s.id] = 'present';
     });
-    setLogAttendance(initialAttendance);
+    setLogAttendance(attendanceDraft);
   };
 
   const handleSaveLog = (e: React.FormEvent) => {

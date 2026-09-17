@@ -274,7 +274,7 @@ export const DashboardTeacher: React.FC<DashboardTeacherProps> = ({
             
             <div className="space-y-4">
               {upcomingLessons.slice(0, 3).map((lesson) => {
-                const isToday = lesson.plannedDate === '2026-05-20';
+                const isToday = lesson.plannedDate === new Date().toISOString().slice(0, 10);
                 return (
                   <div key={lesson.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-800/40 border border-slate-700/30 hover:border-slate-700/60 transition">
                     <div className="flex items-start gap-3">

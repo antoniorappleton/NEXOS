@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  initialUsers,
-  initialClasses,
-  initialModules,
-  initialLessons,
-  initialContents,
-  initialAssignments,
-  initialSubmissions,
-  initialGitHubAccounts,
-  initialGitHubRepoActivity,
-  initialAttendanceSessions,
-  initialAttendanceRecords,
   User,
   Class,
   Module,
@@ -55,45 +44,36 @@ import {
   Search,
   Bell,
   UserCheck,
-  Power,
-  Info,
   Loader2
 } from 'lucide-react';
 import { Github } from './components/Icons';
 
 export const App: React.FC = () => {
   // Config & Auth states
-  const [bypassFirebase, setBypassFirebase] = useState(() => localStorage.getItem('devclass_offline_mode') === 'true');
+  const bypassFirebase = false;
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Global States (Default to mock data, populated from Firebase if online)
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [classes, setClasses] = useState<Class[]>(initialClasses);
-  const [modules, setModules] = useState<Module[]>(initialModules);
-  const [lessons, setLessons] = useState<Lesson[]>(initialLessons);
-  const [contents, setContents] = useState<Content[]>(initialContents);
-  const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
-  const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions);
-  const [githubAccounts, setGithubAccounts] = useState<GitHubAccount[]>(initialGitHubAccounts);
-  const [githubRepoActivity, setGithubRepoActivity] = useState<GitHubRepoActivity[]>(initialGitHubRepoActivity);
-  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(initialAttendanceSessions);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(initialAttendanceRecords);
-  const [grades, setGrades] = useState<Grade[]>([
-    { id: 'g-1', studentId: 'u-3', moduleId: 'm-1', finalGrade: 17.0, calculatedAt: '2026-10-06' },
-    { id: 'g-2', studentId: 'u-3', moduleId: 'm-2', finalGrade: 14.5, calculatedAt: '2026-11-20' },
-    { id: 'g-3', studentId: 'u-4', moduleId: 'm-1', finalGrade: 16.5, calculatedAt: '2026-10-06' },
-    { id: 'g-4', studentId: 'u-5', moduleId: 'm-2', finalGrade: 12.0, calculatedAt: '2026-11-21' }
-  ]);
+  // Global states are hydrated exclusively from Firebase or user input.
+  const [users, setUsers] = useState<User[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [contents, setContents] = useState<Content[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [githubAccounts, setGithubAccounts] = useState<GitHubAccount[]>([]);
+  const [githubRepoActivity, setGithubRepoActivity] = useState<GitHubRepoActivity[]>([]);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
 
-  // Active Role and Profile (Default: Teacher João Appleton, updated after loading)
-  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
+  // Active profile is resolved after authentication and Firestore profile load.
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Floating selector display
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
@@ -109,6 +89,19 @@ export const App: React.FC = () => {
     if (!isFirebaseConfigured || bypassFirebase) return;
     setLoading(true);
     try {
+      setUsers([]);
+      setClasses([]);
+      setModules([]);
+      setLessons([]);
+      setContents([]);
+      setAssignments([]);
+      setSubmissions([]);
+      setGithubAccounts([]);
+      setGithubRepoActivity([]);
+      setAttendanceSessions([]);
+      setAttendanceRecords([]);
+      setGrades([]);
+
       // 1. Fetch profiles
       const pSnap = await getDocs(collection(db, 'profiles'));
       const fetchedProfiles = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
@@ -327,24 +320,6 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (!isFirebaseConfigured || bypassFirebase) {
-      setUsers(initialUsers);
-      setClasses(initialClasses);
-      setModules(initialModules);
-      setLessons(initialLessons);
-      setContents(initialContents);
-      setAssignments(initialAssignments);
-      setSubmissions(initialSubmissions);
-      setGithubAccounts(initialGitHubAccounts);
-      setGithubRepoActivity(initialGitHubRepoActivity);
-      setAttendanceSessions(initialAttendanceSessions);
-      setAttendanceRecords(initialAttendanceRecords);
-      setGrades([
-        { id: 'g-1', studentId: 'u-3', moduleId: 'm-1', finalGrade: 17.0, calculatedAt: '2026-10-06' },
-        { id: 'g-2', studentId: 'u-3', moduleId: 'm-2', finalGrade: 14.5, calculatedAt: '2026-11-20' },
-        { id: 'g-3', studentId: 'u-4', moduleId: 'm-1', finalGrade: 16.5, calculatedAt: '2026-10-06' },
-        { id: 'g-4', studentId: 'u-5', moduleId: 'm-2', finalGrade: 12.0, calculatedAt: '2026-11-21' }
-      ]);
-      setCurrentUser(initialUsers[0]);
       setLoading(false);
       return;
     }
@@ -481,7 +456,7 @@ export const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [bypassFirebase]);
+  }, []);
 
   // Sync profile data once authenticated & profiles are fetched
   useEffect(() => {
@@ -499,15 +474,6 @@ export const App: React.FC = () => {
     setCurrentView(view);
   };
 
-  const handleRoleChange = (userId: string) => {
-    const matchedUser = users.find(u => u.id === userId);
-    if (matchedUser) {
-      setCurrentUser(matchedUser);
-      setCurrentView(matchedUser.role === 'admin' ? 'admin' : 'dashboard');
-      setShowRoleSelector(false);
-    }
-  };
-
   const handleOpenEditProfile = () => {
     setEditName(currentUser?.name || '');
     setEditAvatar(currentUser?.avatar || '');
@@ -516,6 +482,7 @@ export const App: React.FC = () => {
   };
 
   const handleSaveProfile = async () => {
+    if (!currentUser) return;
     const newData = { name: editName, avatar: editAvatar, role: editRole };
     if (isFirebaseConfigured && !bypassFirebase) {
       try {
@@ -608,7 +575,7 @@ export const App: React.FC = () => {
         id: sessionId,
         lessonId,
         classId: 'c-1',
-        date: '2026-05-20'
+        date: new Date().toISOString().slice(0, 10)
       };
       setAttendanceSessions(prev => [...prev, newSession]);
 
@@ -645,7 +612,7 @@ export const App: React.FC = () => {
       const created: Content = {
         ...newContent,
         id: `co-${contents.length + 1}`,
-        createdAt: '2026-05-20'
+        createdAt: new Date().toISOString().slice(0, 10)
       };
       setContents([...contents, created]);
     }
@@ -704,7 +671,7 @@ export const App: React.FC = () => {
           setGrades(prev => prev.map(g => (g.studentId === targetSub.studentId && g.moduleId === targetAssign.moduleId) ? {
             ...g,
             finalGrade: grade,
-            calculatedAt: '2026-05-20'
+            calculatedAt: new Date().toISOString().slice(0, 10)
           } : g));
         } else {
           const newGrade: Grade = {
@@ -712,7 +679,7 @@ export const App: React.FC = () => {
             studentId: targetSub.studentId,
             moduleId: targetAssign.moduleId,
             finalGrade: grade,
-            calculatedAt: '2026-05-20'
+            calculatedAt: new Date().toISOString().slice(0, 10)
           };
           setGrades(prev => [...prev, newGrade]);
         }
@@ -746,8 +713,8 @@ export const App: React.FC = () => {
           repoName,
           repoUrl: github,
           lastCommitDate: new Date().toISOString(),
-          commitsCount: 1,
-          languages: ['HTML', 'CSS', 'JavaScript']
+          commitsCount: 0,
+          languages: []
         });
 
         await fetchFirebaseData();
@@ -775,73 +742,25 @@ export const App: React.FC = () => {
         repoName,
         repoUrl: github,
         lastCommitDate: new Date().toISOString().slice(0, 19),
-        commitsCount: 1,
-        languages: ['HTML', 'CSS', 'JavaScript']
+        commitsCount: 0,
+        languages: []
       };
       setGithubRepoActivity([...githubRepoActivity, newRepo]);
     }
   };
 
   const handleConnectGitHub = async (username: string) => {
+    if (!currentUser) return;
     if (isFirebaseConfigured && !bypassFirebase) {
       try {
-        // Update user profile document in Firestore
         await updateDoc(doc(db, 'profiles', currentUser.id), {
           githubUsername: username,
           connectedAt: new Date().toISOString().slice(0, 10)
         });
-
-        // Insert repo activity docs
-        await addDoc(collection(db, 'github_repo_activities'), {
-          studentId: currentUser.id,
-          repoName: 'projeto-portfolio',
-          repoUrl: `https://github.com/${username}/projeto-portfolio`,
-          lastCommitDate: new Date().toISOString(),
-          commitsCount: 12,
-          languages: ['HTML', 'CSS']
-        });
-        await addDoc(collection(db, 'github_repo_activities'), {
-          studentId: currentUser.id,
-          repoName: 'mini-pwa-finance',
-          repoUrl: `https://github.com/${username}/mini-pwa-finance`,
-          lastCommitDate: new Date().toISOString(),
-          commitsCount: 26,
-          languages: ['JavaScript', 'HTML']
-        });
-
         await fetchFirebaseData();
       } catch (err) {
         console.error('Error connecting GitHub:', err);
       }
-    } else {
-      const newAcc: GitHubAccount = {
-        userId: currentUser.id,
-        githubUsername: username,
-        connectedAt: '2026-05-20'
-      };
-      setGithubAccounts([...githubAccounts, newAcc]);
-
-      const seedRepos: GitHubRepoActivity[] = [
-        {
-          id: `ra-${githubRepoActivity.length + 1}`,
-          studentId: currentUser.id,
-          repoName: 'projeto-portfolio',
-          repoUrl: `https://github.com/${username}/projeto-portfolio`,
-          lastCommitDate: '2026-05-20T17:30:00',
-          commitsCount: 12,
-          languages: ['HTML', 'CSS']
-        },
-        {
-          id: `ra-${githubRepoActivity.length + 2}`,
-          studentId: currentUser.id,
-          repoName: 'mini-pwa-finance',
-          repoUrl: `https://github.com/${username}/mini-pwa-finance`,
-          lastCommitDate: '2026-05-18T10:15:00',
-          commitsCount: 26,
-          languages: ['JavaScript', 'HTML']
-        }
-      ];
-      setGithubRepoActivity([...githubRepoActivity, ...seedRepos]);
     }
   };
 
@@ -865,7 +784,7 @@ export const App: React.FC = () => {
         setGrades(prev => prev.map(g => (g.studentId === studentId && g.moduleId === moduleId) ? {
           ...g,
           finalGrade: gradeVal,
-          calculatedAt: '2026-05-20'
+          calculatedAt: new Date().toISOString().slice(0, 10)
         } : g));
       } else {
         const created: Grade = {
@@ -873,7 +792,7 @@ export const App: React.FC = () => {
           studentId,
           moduleId,
           finalGrade: gradeVal,
-          calculatedAt: '2026-05-20'
+          calculatedAt: new Date().toISOString().slice(0, 10)
         };
         setGrades([...grades, created]);
       }
@@ -1011,6 +930,8 @@ export const App: React.FC = () => {
   // Filter students
   const studentsList = users.filter(u => u.role === 'student');
 
+  const activeClassName = classes[0]?.name;
+
   // Active Menu list depending on role
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, roles: ['student', 'teacher', 'admin'] },
@@ -1133,21 +1054,14 @@ export const App: React.FC = () => {
   // --- RENDERING ROUTER & VIEWS ---
 
   // 1. Not configured at all
-  if (!isFirebaseConfigured && !bypassFirebase) {
-    return <SetupInstructions onBypass={() => {
-      setBypassFirebase(true);
-      localStorage.setItem('devclass_offline_mode', 'true');
-    }} />;
+  if (!isFirebaseConfigured) {
+    return <SetupInstructions />;
   }
 
   // 2. Configured but not logged in
   if (isFirebaseConfigured && !bypassFirebase && !session) {
     return (
-      <LoginView 
-        onBypass={() => {
-          setBypassFirebase(true);
-          localStorage.setItem('devclass_offline_mode', 'true');
-        }}
+      <LoginView
         onLoginSuccess={() => fetchFirebaseData()}
         externalError={authError}
       />
@@ -1178,7 +1092,7 @@ export const App: React.FC = () => {
             <Terminal size={22} className="stroke-[2.5]" />
           </div>
           <div>
-            <span className="font-extrabold text-lg tracking-tight text-white block">DevClass</span>
+            <span className="font-extrabold text-lg tracking-tight text-white block">NEXOS</span>
             <span className="text-4xs text-slate-500 font-bold uppercase tracking-widest block">Ensino Profissional</span>
           </div>
         </div>
@@ -1221,47 +1135,19 @@ export const App: React.FC = () => {
               Editar Perfil
             </button>
           </div>
-
           {/* Database connection indicator & Logout */}
           <div className="pt-2 border-t border-slate-850 flex flex-col gap-1.5 text-4xs">
-            {isFirebaseConfigured && !bypassFirebase ? (
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Firebase Online</span>
-                <button 
-                  onClick={async () => {
-                    await signOut(auth);
-                  }}
-                  className="text-slate-400 hover:text-rose-450 font-bold underline cursor-pointer"
-                >
-                  Sair
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Offline Demo</span>
-                {isFirebaseConfigured ? (
-                  <button 
-                    onClick={() => {
-                      setBypassFirebase(false);
-                      localStorage.removeItem('devclass_offline_mode');
-                    }}
-                    className="text-slate-450 hover:text-brand-400 font-bold underline cursor-pointer"
-                  >
-                    Ligar Firebase
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      setBypassFirebase(false);
-                      localStorage.removeItem('devclass_offline_mode');
-                    }}
-                    className="text-slate-450 hover:text-brand-400 font-bold underline cursor-pointer"
-                  >
-                    Ver Config
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Firebase Online</span>
+              <button
+                onClick={async () => {
+                  await signOut(auth);
+                }}
+                className="text-slate-400 hover:text-rose-450 font-bold underline cursor-pointer"
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -1290,7 +1176,7 @@ export const App: React.FC = () => {
             <div className="h-5 w-[1px] bg-slate-850" />
             <div className="flex items-center gap-2 text-slate-400 text-xs">
               <UserCheck size={14} className="text-emerald-500" />
-              <span>Turma Ativa: <strong className="text-slate-250 font-bold">12ºP</strong></span>
+              <span>Turma Ativa: <strong className="text-slate-250 font-bold">{activeClassName || 'Sem turma'}</strong></span>
             </div>
           </div>
         </header>
@@ -1300,48 +1186,6 @@ export const App: React.FC = () => {
           {renderActiveView()}
         </div>
       </main>
-
-      {/* Profile/Role selector controller (Only in Local Offline Demo Mode) */}
-      {(!isFirebaseConfigured || bypassFirebase) && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <div className="relative">
-            <button
-              onClick={() => setShowRoleSelector(!showRoleSelector)}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-650 rounded-xl shadow-2xl transition duration-300 group cursor-pointer"
-            >
-              <Power size={14} className="text-brand-500 group-hover:rotate-45 transition duration-300" />
-              <span>Alternar Perfil Demo</span>
-            </button>
-
-            {showRoleSelector && (
-              <div className="absolute bottom-11 right-0 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 space-y-1 animate-fade-in">
-                <div className="px-2.5 py-1.5 text-3xs text-slate-500 font-extrabold uppercase tracking-widest flex items-center gap-1 border-b border-slate-850 mb-1">
-                  <Info size={10} />
-                  Selecione um Perfil
-                </div>
-                {users.map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleRoleChange(u.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition cursor-pointer ${
-                      currentUser?.id === u.id
-                        ? 'bg-brand-600/10 text-brand-400 font-bold'
-                        : 'hover:bg-slate-800 text-slate-350 hover:text-white'
-                    }`}
-                  >
-                    <img src={u.avatar} className="w-5 h-5 rounded-full" alt="" />
-                    <div className="min-w-0">
-                      <span className="block truncate">{u.name}</span>
-                      <span className="block text-3xs text-slate-550 capitalize">{u.role}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
 
       {/* Edit Profile Modal */}
       {showEditProfile && (

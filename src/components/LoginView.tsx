@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { setDoc, doc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
-import { Terminal, Mail, Lock, UserPlus, LogIn, ChevronRight, Loader2, Sparkles, UserCheck, Check, AlertCircle } from 'lucide-react';
-import { seedDatabase } from '../lib/seedFirebase';
+import { Terminal, Mail, Lock, UserPlus, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginViewProps {
-  onBypass: () => void;
   onLoginSuccess: () => void;
   externalError?: string | null;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, externalError }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, externalError }) => {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +17,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, 
   const [role, setRole] = useState<'student' | 'teacher' | 'admin'>('student');
   
   const [loading, setLoading] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const [seedSuccess, setSeedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(externalError || null);
 
   useEffect(() => {
@@ -28,15 +24,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, 
       setErrorMsg(externalError);
     }
   }, [externalError]);
-
-  // Seeded Demo Users for instant testing
-  const demoUsers = [
-    { name: 'João Appleton', role: 'teacher', email: 'joao.appleton@school.pt', desc: 'Professor Principal' },
-    { name: 'Maria Costa', role: 'teacher', email: 'maria.costa@school.pt', desc: 'Professora Substituta' },
-    { name: 'Pedro Silva', role: 'student', email: 'pedro.silva@alunos.pt', desc: 'Aluno Ativo' },
-    { name: 'Maria Santos', role: 'student', email: 'maria.santos@alunos.pt', desc: 'Aluna Ativa' },
-    { name: 'Coordenador', role: 'admin', email: 'admin@school.pt', desc: 'Administrador' }
-  ];
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,53 +152,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, 
     }
   };
 
-  const handleQuickLogin = async (demoEmail: string) => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      await signInWithEmailAndPassword(auth, demoEmail, 'password123');
-      onLoginSuccess();
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg('Erro no login de demonstração. Verifique se já executou a inicialização com dados de teste no botão abaixo.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSeedDatabase = async () => {
-    setSeeding(true);
-    setErrorMsg(null);
-    setSeedSuccess(false);
-    try {
-      const config = {
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCGWe9GweTIR54yJUMyxN9bElo82-Hq_qc",
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "devclass-ensino-profissiona.firebaseapp.com",
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "devclass-ensino-profissiona",
-        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "devclass-ensino-profissiona.firebasestorage.app",
-        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "849450041863",
-        appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:849450041863:web:2e760c5f7b741c720320a2"
-      };
-      await seedDatabase(config);
-      setSeedSuccess(true);
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || 'Erro ao popular a base de dados.');
-    } finally {
-      setSeeding(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4 selection:bg-brand-500/30 overflow-y-auto">
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 my-8 relative">
+      <div className="max-w-xl w-full my-8 relative">
         
         {/* Decorative elements */}
         <div className="absolute -top-12 -left-12 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl" />
         <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
 
         {/* LEFT CARD: AUTH FORM */}
-        <div className="md:col-span-7 glass rounded-3xl border border-slate-800 p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div className="glass rounded-3xl border border-slate-800 p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
           <div>
             {/* Logo */}
             <div className="flex items-center gap-2.5 mb-8">
@@ -219,7 +169,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, 
                 <Terminal size={18} className="stroke-[2.5]" />
               </div>
               <div>
-                <span className="font-extrabold text-md tracking-tight text-white block">DevClass</span>
+                <span className="font-extrabold text-md tracking-tight text-white block">NEXOS</span>
                 <span className="text-4xs text-slate-500 font-bold uppercase tracking-widest block">Trabalho & Produção (Firebase)</span>
               </div>
             </div>
@@ -407,71 +357,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBypass, onLoginSuccess, 
               </button>
             </div>
           </div>
-
-          {/* Local fallback action */}
-          <div className="mt-8 border-t border-slate-850 pt-4 flex items-center justify-between text-3xs text-slate-550">
-            <span>Deseja testar sem base de dados?</span>
-            <button 
-              onClick={onBypass}
-              className="text-slate-400 hover:text-brand-400 font-semibold underline cursor-pointer"
-            >
-              Usar Demonstração Local
-            </button>
-          </div>
         </div>
-
-        {/* RIGHT CARD: QUICK DEMO LOGINS */}
-        <div className="md:col-span-5 glass rounded-3xl border border-slate-800 p-8 flex flex-col justify-between shadow-2xl relative bg-slate-900/30">
-          <div className="space-y-6">
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-slate-850 pb-2">
-              <Sparkles size={16} className="text-brand-400 fill-brand-400/10" />
-              Acesso Rápido de Teste
-            </h3>
-
-            <div className="space-y-2">
-              {demoUsers.map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleQuickLogin(item.email)}
-                  disabled={loading || seeding}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/40 hover:bg-slate-800/60 border border-slate-850 hover:border-slate-700/60 text-left transition duration-300 group cursor-pointer disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`p-1.5 rounded-lg ${item.role === 'teacher' ? 'bg-brand-500/10 text-brand-450' : item.role === 'admin' ? 'bg-rose-500/10 text-rose-450' : 'bg-slate-800 text-slate-400'}`}>
-                      <UserCheck size={12} />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-200 block leading-tight">{item.name}</span>
-                      <span className="text-4xs text-slate-550 block mt-0.5">{item.desc}</span>
-                    </div>
-                  </div>
-                  <ChevronRight size={12} className="text-slate-650 group-hover:text-slate-350 group-hover:translate-x-0.5 transition duration-300 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 border-t border-slate-850 pt-5 space-y-3">
-            <span className="text-3xs text-slate-400 font-bold block">Primeira utilização?</span>
-            {seedSuccess && (
-              <div className="p-2 rounded-lg text-3xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                <Check size={12} /> Base de dados demo semeada!
-              </div>
-            )}
-            <button
-              onClick={handleSeedDatabase}
-              disabled={seeding || seedSuccess}
-              className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-850 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border border-slate-700 hover:border-slate-650 transition text-3xs font-semibold cursor-pointer disabled:opacity-50"
-            >
-              {seeding ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-              <span>{seeding ? 'A semear...' : 'Semear Base de Dados'}</span>
-            </button>
-            <div className="text-center text-5xs text-slate-600">
-              Palavra-passe padrão: <strong>password123</strong>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );

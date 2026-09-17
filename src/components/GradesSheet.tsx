@@ -101,7 +101,7 @@ export const GradesSheet: React.FC<GradesSheetProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="text-md font-bold text-white flex items-center gap-2">
               <BarChart2 size={18} className="text-brand-500" />
-              Pauta da Turma 12ºP (Programação)
+              Pauta da Turma
             </h3>
             <span className="text-3xs text-slate-500 font-semibold uppercase italic flex items-center gap-1">
               <Edit2 size={10} />

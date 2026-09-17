@@ -254,7 +254,7 @@ export const GitHubCenter: React.FC<GitHubCenterProps> = ({
         <div className="p-6 glass rounded-2xl border border-slate-800 space-y-4">
           <h3 className="text-md font-bold text-white flex items-center gap-2">
             <Users size={18} className="text-brand-500" />
-            Atividade de Código da Turma (12ºP)
+            Atividade de Código da Turma
           </h3>
 
           <div className="overflow-x-auto">
