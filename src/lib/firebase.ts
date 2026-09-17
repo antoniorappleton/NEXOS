@@ -24,5 +24,8 @@ const app = isFirebaseConfigured
   : null;
 
 export const auth = app ? getAuth(app) : (null as any);
-export const db = app ? getFirestore(app) : (null as any);
+// The Firestore database for this project was created with the explicit id
+// "default" rather than the SDK's implicit "(default)" database, so it must
+// be addressed by name or the client fails with "Database '(default)' not found".
+export const db = app ? getFirestore(app, 'default') : (null as any);
 export default app;
