@@ -23,6 +23,10 @@ const app = isFirebaseConfigured
   ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp())
   : null;
 
+// Emails that must always hold the admin role, regardless of what role was
+// picked at sign-up (e.g. the project owner signing in with Google).
+export const ADMIN_EMAILS = ['antonioappleton@gmail.com'];
+
 export const auth = app ? getAuth(app) : (null as any);
 // The Firestore database for this project was created with the explicit id
 // "default" rather than the SDK's implicit "(default)" database, so it must

@@ -16,7 +16,7 @@ import {
 } from './data/mockData';
 
 // Firebase client & Views
-import { isFirebaseConfigured, auth, db } from './lib/firebase';
+import { isFirebaseConfigured, auth, db, ADMIN_EMAILS } from './lib/firebase';
 import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
 import { collection, getDocs, doc, addDoc, setDoc, updateDoc, deleteDoc, query, orderBy, getDoc, where } from 'firebase/firestore';
 import { SetupInstructions } from './components/SetupInstructions';
@@ -358,6 +358,10 @@ export const App: React.FC = () => {
                   }
                 }
 
+                if (ADMIN_EMAILS.includes((redirectResult.user as any).email || '')) {
+                  finalRole = 'admin';
+                }
+
                 await setDoc(profileRef, {
                   name: finalName,
                   email: (redirectResult.user as any).email || '',
@@ -368,6 +372,12 @@ export const App: React.FC = () => {
                 if (typeof window !== 'undefined') {
                   localStorage.removeItem('google_login_role');
                 }
+                await fetchFirebaseData();
+              } else if (
+                ADMIN_EMAILS.includes((redirectResult.user as any).email || '') &&
+                profileSnap.data()?.role !== 'admin'
+              ) {
+                await updateDoc(profileRef, { role: 'admin' });
                 await fetchFirebaseData();
               }
             } catch (err: any) {
@@ -423,6 +433,10 @@ export const App: React.FC = () => {
                 }
               }
 
+              if (ADMIN_EMAILS.includes((user as any).email || '')) {
+                finalRole = 'admin';
+              }
+
               await setDoc(profileRef, {
                 name: finalName,
                 email: (user as any).email || '',
@@ -434,6 +448,12 @@ export const App: React.FC = () => {
                 localStorage.removeItem('google_login_role');
               }
               // Reload profiles into state
+              await fetchFirebaseData();
+            } else if (
+              ADMIN_EMAILS.includes((user as any).email || '') &&
+              profileSnap.data()?.role !== 'admin'
+            ) {
+              await updateDoc(profileRef, { role: 'admin' });
               await fetchFirebaseData();
             }
           } catch (err: any) {

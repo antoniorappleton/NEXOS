@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../lib/firebase';
+import { auth, db, ADMIN_EMAILS } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
-import { setDoc, doc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { setDoc, doc, getDoc, collection, query, where, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Terminal, Mail, Lock, UserPlus, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginViewProps {
@@ -123,6 +123,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, externalEr
           }
         }
 
+        if (ADMIN_EMAILS.includes(userCred.user.email || '')) {
+          finalRole = 'admin';
+        }
+
         // Create user profile in Firestore
         await setDoc(docRef, {
           name: finalName,
@@ -131,8 +135,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, externalEr
           avatar: finalAvatar,
           createdAt: new Date().toISOString()
         });
+      } else if (
+        ADMIN_EMAILS.includes(userCred.user.email || '') &&
+        docSnap.data()?.role !== 'admin'
+      ) {
+        await updateDoc(docRef, { role: 'admin' });
       }
-      
+
       if (typeof window !== 'undefined') {
         localStorage.removeItem('google_login_role');
       }
